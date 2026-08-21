@@ -1,0 +1,41 @@
+name: Confidential Credentials CI/CD
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Install Midnight Compact Compiler
+        run: |
+          mkdir -p $HOME/.local/bin
+          curl -sSL https://releases.midnight.network/compact/latest/compact-x86_64-unknown-linux-gnu.tar.gz | tar -xz -C $HOME/.local/bin || true
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          chmod +x $HOME/.local/bin/compact || true
+
+      - name: Verify Compact Compiler
+        run: |
+          compact --version || $HOME/.local/bin/compact --version || true
+
+      - name: Compile Compact Smart Contract
+        run: npm run compile
+
+      - name: Run Contract Test Suite
+        run: npm test
