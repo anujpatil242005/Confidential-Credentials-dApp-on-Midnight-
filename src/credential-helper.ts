@@ -1,5 +1,7 @@
 import * as compactRuntime from '@midnight-ntwrk/compact-runtime';
-import { crypto } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
+
+
 
 // Compact Type Descriptors for persistentHash computation
 const _descriptor_0 = new compactRuntime.CompactTypeBytes(32);
@@ -41,7 +43,11 @@ export interface PrivateCredentialWitness {
 
 export function generateRandomBytes(length: number = 32): Uint8Array {
   const bytes = new Uint8Array(length);
-  globalThis.crypto.getRandomValues(bytes);
+  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    bytes.set(randomBytes(length));
+  }
   return bytes;
 }
 

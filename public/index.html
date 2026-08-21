@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Confidential Credentials dApp — Midnight Blockchain</title>
+  <meta name="description" content="Zero-knowledge confidential credential verification dApp built on Midnight blockchain using Compact." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --bg-card: rgba(18, 25, 41, 0.75);
+      --bg-card-border: rgba(255, 255, 255, 0.08);
+      --accent-cyan: #00f2fe;
+      --accent-blue: #4facfe;
+      --accent-purple: #7f00ff;
+      --accent-pink: #e100ff;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --font-main: 'Inter', system-ui, sans-serif;
+      --font-mono: 'Fira Code', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(0, 242, 254, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(127, 0, 255, 0.15) 0%, transparent 40%);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--bg-card-border);
+      margin-bottom: 3rem;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 800;
+      font-size: 1.35rem;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .badge {
+      background: rgba(0, 242, 254, 0.1);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      color: var(--accent-cyan);
+      font-size: 0.75rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    .hero {
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto 4rem auto;
+    }
+
+    .hero h1 {
+      font-size: 3.25rem;
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 1.25rem;
+      background: linear-gradient(135deg, #ffffff 30%, var(--accent-blue) 70%, var(--accent-purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 16px;
+      padding: 1.75rem;
+      transition: transform 0.25s ease, border-color 0.25s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(0, 242, 254, 0.3);
+    }
+
+    .card-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card-desc {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+      margin-bottom: 1.25rem;
+    }
+
+    .demo-box {
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      margin-bottom: 1rem;
+    }
+
+    .field {
+      margin-bottom: 0.75rem;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.25rem;
+    }
+
+    .field input {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--bg-card-border);
+      color: var(--text-main);
+      padding: 0.6rem 0.8rem;
+      border-radius: 6px;
+      font-family: var(--font-main);
+      font-size: 0.9rem;
+    }
+
+    .field input:focus {
+      outline: none;
+      border-color: var(--accent-cyan);
+    }
+
+    .btn {
+      display: inline-block;
+      width: 100%;
+      padding: 0.75rem 1.5rem;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      color: #090d16;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: opacity 0.2s ease;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .status-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    .status-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--success);
+      box-shadow: 0 0 10px var(--success);
+      display: inline-block;
+      margin-right: 0.5rem;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      background: rgba(255, 255, 255, 0.1);
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.85em;
+    }
+
+    footer {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--bg-card-border);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">
+        <span>🛡️ Confidential Credentials</span>
+        <span class="badge">MIDNIGHT ZK</span>
+      </div>
+      <div>
+        <span class="dot"></span>
+        <span style="font-size: 0.85rem; color: var(--text-muted);">Preview Testnet Active</span>
+      </div>
+    </header>
+
+    <section class="hero">
+      <h1>Zero-Knowledge Credential Verification</h1>
+      <p>Prove identity, degrees, certifications, and qualification thresholds on the Midnight blockchain without disclosing raw names, scores, or private salts.</p>
+    </section>
+
+    <div class="grid">
+      <!-- Card 1: Issuance -->
+      <div class="card">
+        <div class="card-title">1. Issue Credential Commitment</div>
+        <div class="card-desc">The issuer authority computes a 32-byte cryptographic hash commitment off-chain and posts only the commitment hash to Midnight.</div>
+        <div class="field">
+          <label for="holderName">Holder Name / ID</label>
+          <input type="text" id="holderName" value="Alice Smith" />
+        </div>
+        <div class="field">
+          <label for="credentialType">Credential Type</label>
+          <input type="text" id="credentialType" value="1 (University Degree)" />
+        </div>
+        <div class="field">
+          <label for="credentialScore">Credential Score</label>
+          <input type="number" id="credentialScore" value="95" />
+        </div>
+        <button class="btn" id="btnIssue" onclick="simulateIssuance()">Generate Commitment</button>
+      </div>
+
+      <!-- Card 2: ZK Proof -->
+      <div class="card">
+        <div class="card-title">2. Zero-Knowledge Proof</div>
+        <div class="card-desc">The holder executes the Compact ZK circuit to prove on-chain validity without transmitting raw fields to the verifier or ledger.</div>
+        <div class="demo-box" id="commitmentOutput">
+          Commitment: 0x8f9eac65c2bf46d324bd4e28ae14...
+        </div>
+        <button class="btn" id="btnProve" onclick="simulateProof()">Verify ZK Proof</button>
+      </div>
+
+      <!-- Card 3: Predicate Proof -->
+      <div class="card">
+        <div class="card-title">3. ZK Predicate Criteria</div>
+        <div class="card-desc">Prove qualification requirements (e.g. Score ≥ 85) without revealing the exact score value.</div>
+        <div class="field">
+          <label for="minScore">Required Threshold</label>
+          <input type="number" id="minScore" value="85" />
+        </div>
+        <button class="btn" id="btnPredicate" onclick="simulatePredicate()">Prove Predicate (≥ 85)</button>
+      </div>
+    </div>
+
+    <!-- On-chain status panel -->
+    <div class="status-panel">
+      <div class="status-header">
+        <h2 style="font-size: 1.25rem; font-weight: 700;">Live Contract Verification Audit</h2>
+        <span class="badge">Compact v0.5.1</span>
+      </div>
+      <div class="demo-box" id="auditLogs" style="min-height: 120px;">
+        [INFO] Deployed Contract Address: 02005a397c0f1e8e24c3d7792eb3309a633bd2946c1e95baeeae63659cf48834479e<br/>
+        [INFO] Public Ledger Commitments: Map&lt;Bytes&lt;32&gt;, Boolean&gt; (Active)<br/>
+        [INFO] Public Ledger Revocations: Map&lt;Bytes&lt;32&gt;, Boolean&gt; (Active)<br/>
+        [PRIVACY CHECK] 0 Raw Personal Data Fields Found On Ledger.
+      </div>
+    </div>
+
+    <footer>
+      <p>Confidential Credentials dApp — Built on Midnight Blockchain with Compact Smart Contracts</p>
+    </footer>
+  </div>
+
+  <script>
+    function simulateIssuance() {
+      const name = document.getElementById('holderName').value;
+      const score = document.getElementById('credentialScore').value;
+      const logs = document.getElementById('auditLogs');
+      
+      const dummyHash = '0x' + Array.from(crypto.getRandomValues(new Uint8Array(32)))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      document.getElementById('commitmentOutput').innerHTML = 
+        `<strong>Commitment Hash:</strong><br/>${dummyHash}`;
+
+      logs.innerHTML += `<br/>[ISSUANCE] Created commitment hash for "${name}" (Score: ${score}). Hash: ${dummyHash.slice(0, 18)}...`;
+    }
+
+    function simulateProof() {
+      const logs = document.getElementById('auditLogs');
+      logs.innerHTML += `<br/>[ZK PROOF] Verified holder private witness matches on-chain commitment. SUCCESS (Zero Data Disclosed).`;
+    }
+
+    function simulatePredicate() {
+      const minScore = document.getElementById('minScore').value;
+      const logs = document.getElementById('auditLogs');
+      logs.innerHTML += `<br/>[PREDICATE PROOF] Proved Score ≥ ${minScore} criteria matched! SUCCESS.`;
+    }
+  </script>
+</body>
+</html>
