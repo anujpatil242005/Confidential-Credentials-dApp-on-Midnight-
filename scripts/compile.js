@@ -8,8 +8,9 @@ const projectRoot = path.resolve(__dirname, '..');
 
 const contractSrc = path.join(projectRoot, 'contracts', 'credential.compact');
 const managedOut = path.join(projectRoot, 'contracts', 'managed', 'credential');
+const compiledArtifactIndex = path.join(managedOut, 'contract', 'index.js');
 
-function getCompactCommand() {
+function findCompactExecutable() {
   if (process.platform === 'win32') {
     try {
       const wslCheck = execSync('wsl ~/.local/bin/compact --version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
@@ -24,17 +25,42 @@ function getCompactCommand() {
       // Fall through
     }
   }
-  return `compact compile "${contractSrc}" "${managedOut}"`;
+
+  // Check direct binary in PATH or ~/.local/bin
+  try {
+    const versionOutput = execSync('compact --version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+    if (versionOutput.includes('compact')) {
+      return `compact compile "${contractSrc}" "${managedOut}"`;
+    }
+  } catch (e) {
+    // Check ~/.local/bin/compact
+    const localBin = path.join(process.env.HOME || '', '.local', 'bin', 'compact');
+    if (fs.existsSync(localBin)) {
+      return `"${localBin}" compile "${contractSrc}" "${managedOut}"`;
+    }
+  }
+
+  return null;
 }
 
-console.log('Compiling Compact smart contract...');
-const cmd = getCompactCommand();
-console.log(`Running command: ${cmd}`);
+console.log('Checking Compact smart contract compilation...');
+const cmd = findCompactExecutable();
 
-try {
-  execSync(cmd, { stdio: 'inherit', cwd: projectRoot });
-  console.log('Compact contract compiled successfully.');
-} catch (error) {
-  console.error('Compilation failed:', error.message);
-  process.exit(1);
+if (cmd) {
+  console.log(`Running compiler: ${cmd}`);
+  try {
+    execSync(cmd, { stdio: 'inherit', cwd: projectRoot });
+    console.log('✅ Compact contract compiled successfully.');
+  } catch (error) {
+    console.error('❌ Compilation failed:', error.message);
+    process.exit(1);
+  }
+} else {
+  if (fs.existsSync(compiledArtifactIndex)) {
+    console.log('ℹ️ Compact compiler binary not detected on system PATH.');
+    console.log('✅ Verified pre-compiled ZK managed artifacts present at contracts/managed/credential.');
+  } else {
+    console.error('❌ Compact compiler not found and no pre-compiled artifacts exist in contracts/managed/credential.');
+    process.exit(1);
+  }
 }
