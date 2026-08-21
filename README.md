@@ -1,210 +1,142 @@
-# smarttiffin
+# Confidential Credentials dApp on Midnight
 
-A Midnight Network smart contract scaffolded with create-mn-app.
+## Product Concept
 
-## Quick start
+**Confidential Credentials** is a zero-knowledge credential verification dApp built on the **Midnight blockchain**. Traditional digital credentials force holders to disclose full personal details (e.g. legal name, national ID, full academic transcript, exact grades, or date of birth) whenever proving eligibility to a third-party verifier. Confidential Credentials solves this privacy problem by storing only cryptographic hash commitments on the public ledger. Holders can generate zero-knowledge proofs demonstrating that they possess a valid, currently-unrevoked credential issued by an authorized authority — without revealing any raw credential fields to the verifier or the public blockchain.
 
-Requirements: Node 22, Docker (with Compose v2), and the Compact compiler at the version pinned in `.compact-version` at the create-mn-app repo root (the version this project was scaffolded against).
+## Why Midnight & Zero-Knowledge Architecture
+
+Compact's witness and private state model enables true data confidentiality:
+- **Off-Chain Witnessing**: Raw credential fields (`holderId`, `credentialType`, `credentialValue`, `salt`) exist strictly within private witness inputs inside ZK circuits.
+- **Zero Ledger Disclosure**: Raw data is never written to ledger state, emitted in events, or logged in transactions.
+- **On-Chain Commitments**: The issuer commits a 32-byte cryptographic hash `persistentHash([holderId, credentialType, credentialValue, salt])` to public ledger state (`commitments`).
+- **ZK Revocation Checking**: The holder's ZK circuit proof proves:
+  1. The holder knows private witness parameters matching an on-chain commitment in `commitments`.
+  2. The commitment has NOT been marked as revoked in `revoked`.
+  3. (Optional Predicate) The credential satisfies custom criteria (e.g. Score $\ge 85$) without revealing the actual score.
+
+## Smart Contract Architecture (`contracts/credential.compact`)
+
+The Compact smart contract exposes 5 circuits:
+
+| Circuit | Role | Description |
+|---|---|---|
+| `initialize` | Authority | Initializes the issuer authority public identifier. |
+| `issue_credential` | Authority | Publishes a 32-byte credential commitment hash to the public ledger set. |
+| `revoke_credential` | Authority | Marks an existing commitment hash as revoked in the public revoked map. |
+| `prove_credential` | Holder | Generates ZK proof of holding a valid, unrevoked credential from private witness. |
+| `prove_credential_predicate` | Holder | Generates ZK proof that credential satisfies criteria (e.g. score threshold) without revealing score. |
+
+---
+
+## Toolchain & System Requirements
+
+- **Node.js**: v22.0.0 or higher
+- **Compact Compiler**: Midnight Compact compiler (`compact` v0.5.1)
+- **Docker**: (Optional) Docker Desktop with Compose v2 for running local Midnight devnet stack.
+
+---
+
+## Quick Start
+
+### 1. Installation
 
 ```bash
 npm install
-npm run setup
-npm run test:e2e
 ```
 
-`npm run setup` runs end-to-end with no prompts:
+### 2. Compilation
 
-1. `docker compose up -d --wait` — starts a local Midnight devnet (node, indexer, proof-server) and blocks until all three pass their healthchecks.
-2. `npm run compile` — compiles `contracts/hello-world.compact` to `contracts/managed/hello-world/`.
-3. `npm run deploy` — derives the genesis-seed wallet (NIGHT pre-minted), registers UTXOs for DUST generation, deploys the contract, writes `.midnight-state.json`.
-
-`npm run test:e2e` reconnects to the deployed contract and reads its ledger state. Exits 0 if the contract is live and indexable.
-
-## Local devnet
-
-The project ships its own devnet via `docker-compose.yml`:
-
-| Service        | Port | Purpose                                         |
-| -------------- | ---- | ----------------------------------------------- |
-| `node`         | 9944 | Midnight node, `dev` chain preset               |
-| `indexer`      | 8088 | GraphQL indexer for chain state                 |
-| `proof-server` | 6300 | Generates ZK proofs for contract transactions   |
-
-State lives in container-managed volumes. Tear everything down with:
+Compile the Compact contract and generate managed ZK circuits, proving keys, verification keys, and TypeScript bindings:
 
 ```bash
-docker compose down -v
+npm run compile
 ```
 
-That removes all containers, networks, and volumes. The next `npm run setup` starts from a clean slate.
+Generated managed build artifacts will be produced under `contracts/managed/credential/`.
 
-## ⚠️ LOCAL DEVNET ONLY
+### 3. Run Test Suite
 
-The deploy script uses a well-known genesis seed (`0000…0001`) so the
-pre-minted NIGHT in the `dev` chain preset is immediately available. **Do
-not use this seed against Preprod, mainnet, or any environment that
-handles real value** — anyone running this devnet has full access to
-funds at this seed.
+Execute the 5 automated ZK circuit test scenarios:
 
-## Networks
-
-This DApp supports three networks:
-
-| Network | When to use | Default? |
-|---|---|---|
-| `undeployed` | Local devnet bundled in `docker-compose.yml`. Genesis seed is hardcoded; no funding needed. | yes |
-| `preview` | Public preview testnet. Faucet at `https://midnight-tmnight-preview.nethermind.dev`. |  |
-| `preprod` | Public preprod testnet. Faucet at `https://midnight-tmnight-preprod.nethermind.dev`. |  |
-
-The active network is **sticky**: whichever network you last interacted
-with stays active until you switch. Any command run with `--network <name>`
-also sets that network active for subsequent commands. The default on a
-fresh project is `undeployed` (local devnet).
-
-```sh
-npm run setup -- --network preview   # runs on preview AND makes it active
-npm run cli                          # still uses preview
-npm run check-balance                # still uses preview
+```bash
+npm test
 ```
 
-You can also switch without running anything else:
+Test coverage includes:
+1. Authority credential commitment issuance.
+2. Valid holder zero-knowledge proof generation.
+3. Rejection of invalid witness data (wrong salt or score).
+4. Rejection of revoked credentials.
+5. Zero-knowledge predicate criteria verification & threshold enforcement.
 
-```sh
-npm run network preview         # active network is now preview
-npm run network                 # prints current active network
-npm run network undeployed      # switch back to local devnet
+### 4. Deployment
+
+Deploy to Midnight Preview Testnet:
+
+```bash
+npm run deploy -- --network preview
 ```
 
-### How wallets work across networks
+Deploy to Local Devnet:
 
-- `undeployed` uses a hardcoded genesis seed. Local devnet pre-funds it.
-- `preview` and `preprod` generate a fresh wallet on first use: a 24-word
-  BIP-39 recovery phrase (printed once) plus its derived seed, both stored
-  in `.midnight-state.json` (gitignored). The wallet survives switching
-  networks — switch back later and your funded wallet returns.
-- **Back up your recovery phrase** if you fund a public-network wallet you
-  care about. It is printed when the wallet is created and kept in
-  `.midnight-state.json` under `wallets.<network>.mnemonic`. Anyone holding
-  the phrase controls the wallet.
-- Wallets created before mnemonic support keep working from their stored
-  `seed`; they just have no phrase to import into Lace.
-
-### Using the same wallet as Lace
-
-Seeds are derived with the standard BIP-39 `mnemonicToSeed` step — the same
-convention Lace uses — so identity is portable in both directions:
-
-- **Bring your Lace wallet here**: pass your recovery phrase via the
-  `MIDNIGHT_WALLET_MNEMONIC` env var — the derived addresses match Lace.
-  To keep the phrase out of your shell history, enter it with a hidden
-  prompt instead of typing it inline:
-
-  ```bash
-  read -s MIDNIGHT_WALLET_MNEMONIC && export MIDNIGHT_WALLET_MNEMONIC
-  npm run deploy
-  ```
-- **Take a scaffold wallet to Lace**: restore Lace from the 24-word phrase
-  in `.midnight-state.json`.
-
-### Funding a public-network wallet
-
-On the first run with `--network preview` (or `preprod`):
-
-1. `setup` will print your wallet address and the faucet URL.
-2. Open the faucet URL, paste the address, request tNIGHT.
-3. `setup` polls the wallet balance every 10 s and continues automatically
-   once funds arrive.
-4. The default poll budget is 10 minutes. Override with
-   `MIDNIGHT_FAUCET_TIMEOUT_MS=1800000` (30 min) for unattended runs.
-
-If the faucet is slow or the script times out, your seed is preserved.
-Re-run `npm run setup -- --network preview` once the funds land.
-
-### Environment overrides
-
-These env vars override the active network's config (no per-network
-suffix — they apply to whichever network is active for the run):
-
-| Variable | Effect |
-|---|---|
-| `MIDNIGHT_WALLET_SEED` | Use this hex seed (32-128 hex chars; a Lace-compatible BIP-39 seed is 128) instead of generating/persisting one. Useful for CI with a pre-funded wallet. |
-| `MIDNIGHT_WALLET_MNEMONIC` | Use this BIP-39 recovery phrase instead of generating a wallet — e.g. your Lace phrase, for the same addresses as Lace. Not persisted. Set only one of seed/mnemonic. |
-| `MIDNIGHT_INDEXER_URL` | Override the indexer GraphQL URL. |
-| `MIDNIGHT_INDEXER_WS_URL` | Override the indexer WS URL. |
-| `MIDNIGHT_NODE_URL` | Override the node RPC URL. |
-| `MIDNIGHT_FAUCET_URL` | Override the faucet URL printed during setup. |
-| `MIDNIGHT_PROOF_SERVER_URL` | Override the proof server URL — set to a public proof server (e.g. `https://lace-proof-pub.preview.midnight.network`) to skip running one locally. |
-| `MIDNIGHT_FAUCET_TIMEOUT_MS` | Faucet poll budget in milliseconds (default 600000 = 10 min). |
-
-By default all networks use the **local** proof server. Public proof
-servers exist (see the env override above) but the local default keeps
-your witness data on your machine and avoids depending on a remote
-service for the deploy hot path.
-
-### Switching back to local devnet
-
-```sh
-npm run network undeployed     # or: npm run setup -- --network undeployed
+```bash
+npm run setup
 ```
 
-Your preview/preprod wallet seeds and deploy addresses stay in
-`.midnight-state.json`. Switch back later, and they're still there.
+---
 
-### Wallet sync cache
+## Deployed Network & Contract Address
 
-After each `deploy`, `cli`, or `check-balance` run, the scripts serialize the
-wallet's synced state to `.midnight-wallet-state/<network>/` (gitignored).
-The next run on the same network restores from that snapshot and only catches
-up to the latest block instead of replaying from genesis — meaningful on
-`preview` / `preprod` where a from-seed sync takes minutes.
+- **Network**: `preview` (Public Testnet) / `undeployed` (Local Devnet)
+- **Deployed Contract Address**: `02005a397c0f1e8e24c3d7792eb3309a633bd2946c1e95baeeae63659cf48834479e`
+- **Compiler Version**: Compact 0.5.1
 
-If the cache is stale or corrupt (e.g. after an SDK upgrade with an
-incompatible state format) the wallet falls back to a fresh from-seed sync
-with a one-line warning. `npm run clean` removes the cache along with other
-generated state.
+---
 
-## Available scripts
+## Interactive DApp CLI
 
-| Script                  | Description                                                    |
-| ----------------------- | -------------------------------------------------------------- |
-| `npm run setup`         | One-shot: start devnet, compile, deploy.                       |
-| `npm run compile`       | Compile the Compact contract.                                  |
-| `npm run deploy`        | Deploy the compiled contract (requires devnet up + compiled).  |
-| `npm run cli`           | Interactive CLI to call circuits on the deployed contract.     |
-| `npm run check-balance` | Print the genesis-seed wallet's NIGHT and DUST balances.       |
-| `npm run test:e2e`      | Smoke + read-back check against the deployed contract.         |
-| `npm run clean`         | Remove `contracts/managed/`, `.midnight-state.json`, and `.midnight-wallet-state/`. |
-| `npm run proof-server:start` / `:stop` | Compose lifecycle for just the proof-server service. |
+Launch the interactive CLI to issue credentials, generate ZK proofs, revoke credentials, and perform privacy audits on the live contract state:
 
-## Project structure
+```bash
+npm run cli
+```
+
+### CLI Menu Options
+
+1. **Issue a New Confidential Credential (Authority)**:
+   Input holder name, credential type ID, and score. Generates cryptographic commitment hash and saves private witness parameters.
+2. **Generate Zero-Knowledge Credential Proof (Holder)**:
+   Inputs private witness (`holderId`, `credentialType`, `credentialValue`, `salt`) and generates ZK proof against Midnight ledger without transmitting raw values.
+3. **Prove Credential Predicate (Zero-Knowledge)**:
+   Proves custom criteria (e.g. Score $\ge 80$) without exposing actual score.
+4. **Revoke Credential (Authority)**:
+   Issuer revokes commitment hash on-chain.
+5. **Inspect On-Chain Public Ledger State (Privacy Audit)**:
+   Queries public ledger to verify that ONLY 32-byte hashes exist on-chain.
+
+---
+
+## Project Structure
 
 ```
 smarttiffin/
 ├── contracts/
-│   └── hello-world.compact     # Compact source
+│   ├── credential.compact            # Compact ZK smart contract
+│   └── managed/credential/           # Generated ZK circuits, keys & TS bindings
 ├── scripts/
-│   └── e2e-check.ts            # smoke + read-back
+│   ├── compile.js                    # Cross-platform Compact compiler runner
+│   ├── test-credential.ts            # Automated 5-scenario test suite
+│   └── e2e-check.ts                  # Midnight network integration check
 ├── src/
-│   ├── network.ts              # network selection + state file management
-│   ├── wallet.ts               # wallet construction + sync-state cache
-│   ├── setup.ts                # orchestrator for `npm run setup`
-│   ├── deploy.ts               # deploy the contract
-│   ├── cli.ts                  # interact with deployed contract
-│   └── check-balance.ts        # NIGHT / DUST balance
-├── docker-compose.yml          # node + indexer + proof-server
-├── .midnight-state.json        # written by deploy (gitignored)
-├── .midnight-wallet-state/     # serialized sync state per network (gitignored)
+│   ├── credential-helper.ts          # ZK witness & commitment calculations
+│   ├── cli.ts                        # Interactive DApp CLI
+│   ├── deploy.ts                     # Midnight deployment script
+│   ├── network.ts                    # Network selection & state management
+│   └── wallet.ts                     # Midnight wallet integration & sync cache
+├── .github/workflows/ci.yml          # GitHub Actions CI/CD workflow
+├── DEPLOYMENT.md                     # Deployment details & contract addresses
+├── SETUP.md                          # Toolchain setup instructions
 ├── package.json
 └── tsconfig.json
-```
-
-## Compact compiler version
-
-`.compact-version` at the create-mn-app repo root pinned the compiler
-version this project was scaffolded against. To upgrade your local
-compiler to that version:
-
-```bash
-compact update <version>
-compact use <version>
 ```
